@@ -4,6 +4,10 @@
 * Written by Adrien
 */
 
+#include <avr/pgmspace.h>
+#include <ffft.h>
+#include <math.h>
+
 #include <Keypad.h>
 #include <Wire.h>  //I2C Master
 #include "pitches.h"  //Pitch table
@@ -27,6 +31,13 @@ const byte KEYPAD_COLS = 3;
 //Speaker
 const byte SPEAKER_A = 2;
 
+//Mic In
+const int MIC_A = 0;  //analog 0
+
+//Audio sampling buffer
+const long WAVE_SAMPLE_WIN_MS  = 50; //Sample window in ms
+
+//My keypads
 char keys[KEYPAD_ROWS][KEYPAD_COLS] =
 {
   {'1', '2', '3'},
@@ -79,6 +90,35 @@ void loop()
 
   //Delay
   delay(10);
+
+  //sample audio
+  unsigned long start_ms = millis();  //start window
+  unsigned int ptop = 0;  //peak to peak level
+  unsigned int sig_max = 0;
+  unsigned int sig_min = 1024;
+  unsigned int temp_sample = 0;
+
+  //Sample data
+  while (millis() - start_ms < WAVE_SAMPLE_WIN_MS)
+  {
+    temp_sample = analogRead(MIC_A);
+    if (temp_sample < 1024)
+    {
+      //Peak detection
+      if (temp_sample > sig_max) sig_max = temp_sample;
+      else if (temp_sample < sig_min) sig_min = temp_sample;
+    }
+    else
+    {
+      //Wrong reading?
+    }
+  }
+  ptop = sig_max - sig_min;  //Peak to peak amp
+  double sig_v = ((double)ptop * 5.0) / 1024;
+  Serial.print("Mic Pk-to-Pk:");
+  Serial.print(ptop);
+  Serial.print(" ");
+  Serial.println(sig_v);
 }
 
 void ReadKey(char key)
